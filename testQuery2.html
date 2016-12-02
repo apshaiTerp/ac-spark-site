@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Query 2 - Most Popular Users by Category</title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap-dialog.css" rel="stylesheet">
+
+    <style>
+      #chart {
+        width: 100%;
+        height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 align="center" id="name-header">Query 2 - Most Popular Users by Category</h1>
+      <h4 align="center" id="desc-header">Evaluated based on total Tweets over time frame and the average number of likes and retweets per tweet.</h4>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12 col-sm-5">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon1">Start Date:  </span>
+            <input type="text" id="startDateInput" class="form-control" placeholder="YYYY.MM.DD" aria-describedby="basic-addon1">
+          </div>
+        </div>
+        <div class="col-xs-12 col-sm-5">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon2">End Date:    </span>
+            <input type="text" id="endDateInput" class="form-control" placeholder="YYYY.MM.DD" aria-describedby="basic-addon2">
+          </div>
+        </div>
+        <div class="col-xs-6 col-sm-2">
+          <div class="form-group">
+            <input type="button" id="search-button" class="btn btn-md btn-primary btn-block" value="Search">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chart1"></div>
+    <div><br></div>
+    <div id="chart2"></div>
+    <div><br></div>
+    <div id="chart3"></div>
+    <div><br></div>
+    <div id="chart4"></div>
+    <div><br></div>
+    <div id="chart5"></div>
+
+    <!-- Site footer -->
+    <div><hr></div>
+    <div class="container">
+      <hr>
+      <footer>
+        <p>&copy; Gamer Twitter Mine - A Project developed for UMKC Class CS 5540</p>
+      </footer>
+    </div> <!-- /container -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/bootstrap-dialog.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <script type='text/javascript'>
+      // Load the Visualization API and the corechart package.
+      google.charts.load('current', {'packages':['bar']});
+
+      function showModalErrorDialog(titleText, messageText) {
+        BootstrapDialog.show({
+          title: titleText,
+          message: messageText,
+          type: BootstrapDialog.TYPE_DANGER,
+          buttons: [{
+              id: 'btn-ok',   
+              icon: 'glyphicon glyphicon-check',       
+              label: 'OK',
+              cssClass: 'btn-primary', 
+              autospin: false,
+              action: function(dialogRef){    
+                  dialogRef.close();
+              }
+          }]
+        });
+      };
+
+      document.getElementById("search-button").onclick = function() {
+        var startDateStr = document.getElementById("startDateInput").value;
+        var endDateStr   = document.getElementById("endDateInput").value;
+
+        if (startDateStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No Start Date Value was provided.");
+          return;
+        }
+        if (endDateStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No End Date Value was provided.");
+          return;
+        }
+
+        console.log ("Fire off the search for startDate: " + startDateStr);
+        console.log ("Fire off the search for endDate: " + endDateStr);
+
+        loadQuery2Results(startDateStr, endDateStr);
+      };
+
+      function loadQuery2Results(startDate, endDate) {
+        var dialogInstance1 = new BootstrapDialog({
+            title: 'Processing Query',
+            type: BootstrapDialog.TYPE_PRIMARY,
+            message: 'Please Wait While I Process Your Query...',
+            closable: false
+        });
+        dialogInstance1.open();
+
+        $.ajax ({
+          type:        'GET',
+          url:         'http://65.28.99.247:8080/query2?startdate=' + startDate + '&enddate=' + endDate,
+          contentType: "application/json",
+          dataType:    'json',
+          success: function(data) {
+            var results = data['results'];
+
+            var designerResults   = [];
+            var publisherResults  = [];
+            var reviewerResults   = [];
+            var conventionResults = [];
+            var communityResults  = [];
+
+            var chartHeaders = ['Twitter User', 'Average Likes and RT/Tweet', 'Total Timeline Tweets'];
+            designerResults.push(chartHeaders);
+            publisherResults.push(chartHeaders);
+            reviewerResults.push(chartHeaders);
+            conventionResults.push(chartHeaders);
+            communityResults.push(chartHeaders);
+
+            for (loop = 0; loop < results.length; loop++) {
+              var tweetJSON = results[loop];
+              
+              var userType   = tweetJSON['userType'];
+              var screenName = tweetJSON['screenName'];
+              var userName   = tweetJSON['userName'];
+              var averageLR  = tweetJSON['averageLR'];
+              var tweetCount = tweetJSON['tweetCount'];
+              
+              //DEBUG
+              console.log('UserType:   ' + userType);
+              console.log('ScreenName: ' + screenName);
+              console.log('UserName:   ' + userName);
+              console.log('AverageLR:  ' + averageLR);
+              console.log('TweetCount: ' + tweetCount);
+
+              var curRow = [screenName, averageLR, tweetCount];
+              if (userType == "DESIGNER") {
+                designerResults.push(curRow);
+              } else if (userType == "PUBLISHER") {
+                publisherResults.push(curRow);
+              } else if (userType == "REVIEWER") {
+                reviewerResults.push(curRow);
+              } else if (userType == "CONVENTION") {
+                conventionResults.push(curRow);
+              } else if (userType == "COMMUNITY") {
+                communityResults.push(curRow);
+              } else {
+                console.log("Something bad happened.  I can't map this row");                
+              }
+            }
+
+            var subtitleText = "Time Frame of " + startDate + " and " + endDate;
+
+            //Now we're ready to chart the results
+            var designerData   = google.visualization.arrayToDataTable(designerResults);
+            var publisherData  = google.visualization.arrayToDataTable(publisherResults);
+            var reviewerData   = google.visualization.arrayToDataTable(reviewerResults);
+            var conventionData = google.visualization.arrayToDataTable(conventionResults);
+            var communityData  = google.visualization.arrayToDataTable(communityResults);
+
+            var designerOptions   = { width: 1400, height: 400, 
+                                      chart: { title: 'Most Popular Board Game Designers', subtitle: subtitleText },
+                                      series: { 0: { axis: 'likert'}, 1: { axis: 'tweets'}},
+                                      axes: { y: { likert: {label: 'Average Likes and Retweets'}, 
+                                                   tweets: {side: 'right', label: 'Total Timeline Tweets'}}}};
+            var publisherOptions  = { width: 1400, height: 400, 
+                                      chart: { title: 'Most Popular Board Game Publishers', subtitle: subtitleText },
+                                      series: { 0: { axis: 'likert'}, 1: { axis: 'tweets'}},
+                                      axes: { y: { likert: {label: 'Average Likes and Retweets'}, 
+                                                   tweets: {side: 'right', label: 'Total Timeline Tweets'}}}};
+            var reviewerOptions   = { width: 1400, height: 400, 
+                                      chart: { title: 'Most Popular Board Game Reviewers/Podcasters', subtitle: subtitleText },
+                                      series: { 0: { axis: 'likert'}, 1: { axis: 'tweets'}},
+                                      axes: { y: { likert: {label: 'Average Likes and Retweets'}, 
+                                                   tweets: {side: 'right', label: 'Total Timeline Tweets'}}}};
+            var conventionOptions = { width: 1400, height: 400, 
+                                      chart: { title: 'Most Popular Board Game Conventions', subtitle: subtitleText },
+                                      series: { 0: { axis: 'likert'}, 1: { axis: 'tweets'}},
+                                      axes: { y: { likert: {label: 'Average Likes and Retweets'}, 
+                                                   tweets: {side: 'right', label: 'Total Timeline Tweets'}}}};
+            var communityOptions  = { width: 1400, height: 400, 
+                                      chart: { title: 'Most Popular Board Game Community Members', subtitle: subtitleText },
+                                      series: { 0: { axis: 'likert'}, 1: { axis: 'tweets'}},
+                                      axes: { y: { likert: {label: 'Average Likes and Retweets'}, 
+                                                   tweets: {side: 'right', label: 'Total Timeline Tweets'}}}};
+
+            dialogInstance1.close();
+            
+            var designerChart   = new google.charts.Bar(document.getElementById('chart1'));
+            var publisherChart  = new google.charts.Bar(document.getElementById('chart2'));
+            var reviewerChart   = new google.charts.Bar(document.getElementById('chart3'));
+            var conventionChart = new google.charts.Bar(document.getElementById('chart4'));
+            var communityChart  = new google.charts.Bar(document.getElementById('chart5'));
+            
+            designerChart.draw(designerData, designerOptions);
+            publisherChart.draw(publisherData, publisherOptions);
+            reviewerChart.draw(reviewerData, reviewerOptions);
+            conventionChart.draw(conventionData, conventionOptions);
+            communityChart.draw(communityData, communityOptions);
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            console.log(textStatus);
+            console.log(errorThrown);
+            showModalErrorDialog("Request Error", "An unknown error occurred during the request.");
+          }
+        });
+      }
+    </script>
+
+  </body>
+</html>

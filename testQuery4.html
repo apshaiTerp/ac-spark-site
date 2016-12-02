@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Query 4 - Frequency of Hash Tag Use by User Group</title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap-dialog.css" rel="stylesheet">
+
+    <style>
+      #chart {
+        width: 100%;
+        height: 500px;
+      }
+      #chart2 {
+        width: 100%;
+        height: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 align="center" id="name-header">Query 4 - Frequency of HashTag Use by User Group</h1>
+      <h4 align="center" id="desc-header">Evaluated based on total Tweets per day by each user group referencing a specific Hash Tag.</h4>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12 col-sm-6">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon1">Start Date:  </span>
+            <input type="text" id="startDateInput" class="form-control" placeholder="YYYY.MM.DD" aria-describedby="basic-addon1">
+          </div>
+        </div>
+        <div class="col-xs-12 col-sm-6">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon2">End Date:    </span>
+            <input type="text" id="endDateInput" class="form-control" placeholder="YYYY.MM.DD" aria-describedby="basic-addon2">
+          </div>
+        </div>
+      </div>
+      <br>
+      <div class="row">
+        <div class="col-xs-12 col-sm-6">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon3">HashTag:    </span>
+            <input type="text" id="hashTagInput" class="form-control" placeholder="Hash Tag (without #)" aria-describedby="basic-addon3">
+          </div>
+        </div>
+        <div class="col-xs-6 col-sm-2">
+          <div class="form-group">
+            <input type="button" id="search-button" class="btn btn-md btn-primary btn-block" value="Search">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chart"></div>
+    <div id="chart2"></div>
+
+    <!-- Site footer -->
+    <div><hr></div>
+    <div class="container">
+      <hr>
+      <footer>
+        <p>&copy; Gamer Twitter Mine - A Project developed for UMKC Class CS 5540</p>
+      </footer>
+    </div> <!-- /container -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/bootstrap-dialog.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <script type='text/javascript'>
+      // Load the Visualization API and the corechart package.
+      google.charts.load('current', {'packages':['line']});
+
+      function showModalErrorDialog(titleText, messageText) {
+        BootstrapDialog.show({
+          title: titleText,
+          message: messageText,
+          type: BootstrapDialog.TYPE_DANGER,
+          buttons: [{
+              id: 'btn-ok',   
+              icon: 'glyphicon glyphicon-check',       
+              label: 'OK',
+              cssClass: 'btn-primary', 
+              autospin: false,
+              action: function(dialogRef){    
+                  dialogRef.close();
+              }
+          }]
+        });
+      };
+
+      document.getElementById("search-button").onclick = function() {
+        var startDateStr = document.getElementById("startDateInput").value;
+        var endDateStr   = document.getElementById("endDateInput").value;
+        var hashTagStr   = document.getElementById("hashTagInput").value;
+
+        if (startDateStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No Start Date Value was provided.");
+          return;
+        }
+        if (endDateStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No End Date Value was provided.");
+          return;
+        }
+        if (hashTagStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No Hash Tag Value was provided.");
+          return;
+        }
+
+        console.log ("Fire off the search for startDate: " + startDateStr);
+        console.log ("Fire off the search for endDate: " + endDateStr);
+        console.log ("Fire off the search for hashTag: " + hashTagStr);
+
+        loadQuery4Results(startDateStr, endDateStr, hashTagStr);
+      };
+
+      function loadQuery4Results(startDate, endDate, hashTag) {
+        var dialogInstance1 = new BootstrapDialog({
+            title: 'Processing Query',
+            type: BootstrapDialog.TYPE_PRIMARY,
+            message: 'Please Wait While I Process Your Query...',
+            closable: false
+        });
+        dialogInstance1.open();
+
+        $.ajax ({
+          type:        'GET',
+          url:         'http://65.28.99.247:8080/query4?startdate=' + startDate + '&enddate=' + endDate + '&search=' + hashTag,
+          contentType: "application/json",
+          dataType:    'json',
+          success: function(data) {
+            var results = data['results'];
+
+            var hashTagResults  = [];
+            var hashTagResults2 = [];
+
+            for (loop = 0; loop < results.length; loop++) {
+              var hashTagJSON = results[loop];
+              
+              var yearVal         = hashTagJSON['year'];
+              var monthVal        = hashTagJSON['month'];
+              var dayVal          = hashTagJSON['day'];
+              var designerCount   = hashTagJSON['designerCount'];
+              var publisherCount  = hashTagJSON['publisherCount'];
+              var reviewerCount   = hashTagJSON['reviewerCount'];
+              var conventionCount = hashTagJSON['conventionCount'];
+              var communityCount  = hashTagJSON['communityCount'];
+
+              var curRow = [new Date(yearVal, monthVal, dayVal), designerCount, publisherCount, reviewerCount, conventionCount];
+              hashTagResults.push(curRow);
+
+              var curRow2 = [new Date(yearVal, monthVal, dayVal), communityCount];
+              hashTagResults2.push(curRow2);
+            }
+
+            var lineData = new google.visualization.DataTable();
+            lineData.addColumn('date', 'Day');
+            lineData.addColumn('number', 'Designers Tweets');
+            lineData.addColumn('number', 'Publishers Tweets');
+            lineData.addColumn('number', 'Reviewers/Podcasters Tweets');
+            lineData.addColumn('number', 'Convention Tweets');
+
+            var lineData2 = new google.visualization.DataTable();
+            lineData2.addColumn('date', 'Day');
+            lineData2.addColumn('number', 'Community Tweets');
+
+            lineData.addRows(hashTagResults);
+            lineData2.addRows(hashTagResults2);
+
+            var lineOptions  = { chart: { title: 'Daily usage of Hash Tag #' + hashTag + ' by User Group',
+                                          subtitle: 'Time Frame of ' + startDate + ' to ' + endDate,
+                                          curveType: 'function',
+                                          legend: { position: 'bottom' }}};
+            var lineOptions2 = { chart: { title: 'Daily usage of Hash Tag #' + hashTag + ' by Community Members',
+                                          subtitle: 'Time Frame of ' + startDate + ' to ' + endDate,
+                                          curveType: 'function',
+                                          legend: { position: 'bottom' }}};
+
+            dialogInstance1.close();
+            
+            var lineChart   = new google.charts.Line(document.getElementById('chart'));
+            var lineChart2  = new google.charts.Line(document.getElementById('chart2'));
+
+            lineChart.draw(lineData, lineOptions);
+            lineChart2.draw(lineData2, lineOptions2);
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            console.log(textStatus);
+            console.log(errorThrown);
+            showModalErrorDialog("Request Error", "An unknown error occurred during the request.");
+          }
+        });
+      }
+    </script>
+
+  </body>
+</html>

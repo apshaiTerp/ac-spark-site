@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Query 5 - Tweet Timelines</title>
+
+    <!-- Bootstrap -->
+    <link href="css/vis.css" rel="stylesheet" type="text/css" />
+    <link href="css/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-dialog.css">
+
+    <style type="text/css">
+      .vis-item.green {
+        background-color: greenyellow;
+        border-color: green;
+      }
+      .vis-item.orange {
+        background-color: orange;
+        border-color: orangered;
+      }
+      .vis-item.red {
+        background-color: red;
+        border-color: black;
+        color: white;
+      }
+      .vis-item.purple {
+        background-color: purple;
+        border-color: black;
+        color: white;
+      }
+      .vis-item.blue {
+        background-color: blue;
+        border-color: black;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 align="center" id="name-header">Query 5 - Tweet Timelines</h1>
+      <h4 align="center" id="desc-header">Find the most recent tweets on the requested search terms.</h4>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12 col-sm-5">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon1">Search Term:  </span>
+            <input type="text" id="searchInput" class="form-control" placeholder="A Search Term in Tweet Text" aria-describedby="basic-addon1">
+          </div>
+        </div>
+        <div class="col-xs-12 col-sm-5">
+          <div class="input-group">
+            <span class="input-group-addon" id="basic-addon2">End Date:    </span>
+            <input type="text" id="topXInput" class="form-control" placeholder="Number of Tweets to Fetch" aria-describedby="basic-addon2">
+          </div>
+        </div>
+        <div class="col-xs-6 col-sm-2">
+          <div class="form-group">
+            <input type="button" id="search-button" class="btn btn-md btn-primary btn-block" value="Search">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="graph"></div>
+    <div id="tweet" align="center">
+    </div>
+
+    <!-- Site footer -->
+    <div><hr></div>
+    <div class="container">
+      <hr>
+      <footer>
+        <p>&copy; Gamer Twitter Mine - A Project developed for UMKC Class CS 5540</p>
+      </footer>
+    </div> <!-- /container -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script src="js/bootstrap-dialog.js"></script>
+    <script src="js/widgets.js"></script>
+    <script src="js/vis.js"></script>
+    <script src="js/vis-timeline-graph2d.min.js"></script>
+
+    <script type='text/javascript'>
+      function showModalErrorDialog(titleText, messageText) {
+        BootstrapDialog.show({
+          title: titleText,
+          message: messageText,
+          type: BootstrapDialog.TYPE_DANGER,
+          buttons: [{
+              id: 'btn-ok',   
+              icon: 'glyphicon glyphicon-check',       
+              label: 'OK',
+              cssClass: 'btn-primary', 
+              autospin: false,
+              action: function(dialogRef){    
+                  dialogRef.close();
+              }
+          }]
+        });
+      };
+
+      document.getElementById("search-button").onclick = function() {
+        var searchStr = document.getElementById("searchInput").value;
+        var topXStr   = document.getElementById("topXInput").value;
+
+        if (searchStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No Search Term Value was provided.");
+          return;
+        }
+        if (topXStr == "") {
+          showModalErrorDialog("Invalid Search Parameters", "No Top X Value was provided.");
+          return;
+        }
+
+        console.log ("Fire off the search for search: " + searchStr);
+        console.log ("Fire off the search for topX: " + topXStr);
+
+        loadQuery5Results(searchStr, topXStr);
+      };
+
+      function renderTweet(embedURL) {
+        $.ajax ({
+          type:        'GET',
+          url:         embedURL,
+          contentType: "application/json",
+          dataType:    'json',
+          success: function(data) {
+            var htmlBlock = data['result'];
+
+            console.log("htmlBlock: " + htmlBlock);
+
+            $('#tweet').html(htmlBlock);
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            console.log(textStatus);
+            console.log(errorThrown);
+            showModalErrorDialog("Process Error", "An unknown error occurred during request.");
+          }
+        });
+      };
+
+      function loadQuery5Results(searchTerm, topX) {
+        var dialogInstance1 = new BootstrapDialog({
+            title: 'Processing Query',
+            type: BootstrapDialog.TYPE_PRIMARY,
+            message: 'Please Wait While I Process Your Query...',
+            closable: false
+        });
+        dialogInstance1.open();
+
+        $.ajax ({
+          type:        'GET',
+          url:         'http://65.28.99.247:8080/query5?search=' + searchTerm + '&topx=' + topX,
+          contentType: "application/json",
+          dataType:    'json',
+          success: function(data) {
+            var results = data['results'];
+
+            var graphResults = [];
+
+            sessionStorage.clear();
+            
+            for (loop = 0; loop < results.length; loop++) {
+              var tweetJSON = results[loop];
+
+              var userName    = tweetJSON['userName'];
+              var userType    = tweetJSON['userType'];
+              var statusID    = tweetJSON['statusID'];
+              var createdDate = tweetJSON['createdDate'];
+              var oembedText  = tweetJSON['statusText'];
+
+              var colorClass;
+              if (userType == "DESIGNER") {
+                colorClass = 'orange';
+              } else if (userType == "PUBLISHER") {
+                colorClass = 'purple';
+              } else if (userType == "REVIEWER") {
+                colorClass = 'green';
+              } else if (userType == "CONVENTION") {
+                colorClass = 'red';
+              } else if (userType == "COMMUNITY") {
+                colorClass = 'blue';
+              }
+
+              var rowID = loop + 1;
+              var curRow = {id: rowID, content: '@' + userName, start: createdDate, className: colorClass};
+              graphResults.push(curRow);
+
+              sessionStorage.setItem("item" + rowID, oembedText);
+            }
+
+            dialogInstance1.close();
+
+            var graphItems   = new vis.DataSet(graphResults);
+            var graphHost    = document.getElementById('graph');
+            var graphOptions = { editable: false };
+
+            var graphTimeline = new vis.Timeline(graphHost, graphItems, graphOptions);
+
+            graphTimeline.on('select', function (properties) {
+              //console.log("This should be the mouseclick response!");
+              var tempItems = properties['items'];
+              var itemID = tempItems[0];
+              //console.log("I clicked itemID " + itemID);
+
+              var urlLookup = sessionStorage.getItem("item" + itemID);
+              console.log("The Embed URL = " + urlLookup);
+
+              renderTweet(urlLookup);
+            });
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            console.log(textStatus);
+            console.log(errorThrown);
+            showModalErrorDialog("Request Error", "An unknown error occurred during the request.");
+          }
+        });
+      }
+
+    </script>
+
+  </body>
+</html>
